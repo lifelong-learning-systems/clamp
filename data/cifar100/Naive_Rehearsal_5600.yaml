@@ -1,0 +1,104 @@
+Naive_Rehearsal_5600:
+  0.0:
+  - &id001
+    acc_table:
+      train:
+        '1':
+          test_accuracy:
+            '5': 5.0
+          training_accuracy: 93.75
+          val_accuracy:
+            '1': 67.5
+        '2':
+          test_accuracy:
+            '5': 3.75
+          training_accuracy: 100.0
+          val_accuracy:
+            '2': 88.75
+        '3':
+          test_accuracy:
+            '5': 16.25
+          training_accuracy: 100.0
+          val_accuracy:
+            '3': 72.5
+        '4':
+          test_accuracy:
+            '5': 23.75
+          training_accuracy: 100.0
+          val_accuracy:
+            '4': 88.75
+        '5':
+          test_accuracy:
+            '5': 92.5
+          training_accuracy: 100.0
+          val_accuracy:
+            '5': 92.5
+      val:
+        '0':
+          '1': 4.95
+          '2': 5.35
+          '3': 5.1
+          '4': 4.4
+          '5': 6.3
+        '1':
+          '1': 81.9
+          '2': 8.8
+          '3': 4.8
+          '4': 4.55
+          '5': 5.4
+        '2':
+          '1': 82.2
+          '2': 85.3
+          '3': 4.6
+          '4': 2.4
+          '5': 4.5
+        '3':
+          '1': 79.65
+          '2': 81.3
+          '3': 83.3
+          '4': 3.95
+          '5': 4.55
+        '4':
+          '1': 76.4
+          '2': 79.8
+          '3': 78.2
+          '4': 80.2
+          '5': 6.2
+        '5':
+          '1': 76.85
+          '2': 79.45
+          '3': 77.75
+          '4': 76.05
+          '5': 88.55
+    agent_config:
+      gpuid:
+      - 0
+      lr: 0.001
+      model_name: WideResNet_28_2_cifar
+      model_type: resnet
+      model_weights: null
+      momentum: 0
+      optimizer: Adam
+      out_dim:
+        '1': 20
+        '2': 20
+        '3': 20
+        '4': 20
+        '5': 20
+      print_freq: 100
+      reg_coef: 0.0
+      schedule:
+      - 80
+      - 120
+      - 160
+      weight_decay: 0
+    task_names:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  - *id001
+  - *id001
+  - *id001
+  - *id001
