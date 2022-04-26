@@ -11,21 +11,20 @@ from tqdm import tqdm
 
 
 class IdealLearner(nn.Module):
-    def __init__(self, nalgos, ntasks):
+    def __init__(self, nalgos, ntasks, random_state=0):
         super().__init__()
-        # initialize weights with random numbers
+        # general parameters
         self.ntasks = ntasks
         self.nalgos = nalgos
-        self.min_perf = 0.
-        self.max_perf = 100
-        self.asymptote = 1
         self.task_difficulty_scale = 1
-        self.memory_horizon_scale = 1
+
+        # initialize parameters that can be estimated
+        torch.manual_seed(random_state)
         self.task_matrix = nn.Parameter(
             torch.tensor(np.random.random((self.ntasks, self.ntasks)) * 2 - 1, requires_grad=True))
-        self.task_difficulity = nn.Parameter(torch.tensor(np.random.random((self.ntasks,)), requires_grad=True))
+        self.task_difficulty = nn.Parameter(torch.tensor(np.random.random((self.ntasks,)), requires_grad=True))
         self.alg_efficiency = nn.Parameter(torch.tensor(np.random.normal(0.5, 0.02, size=nalgos), requires_grad=True))
-        self.alg_memory_horizon = nn.Parameter(torch.tensor(np.random.normal(.5, .1, size=nalgos), requires_grad=True))
+        self.alg_memory_horizon = nn.Parameter(torch.tensor(np.random.normal(0.5, 0.1, size=nalgos), requires_grad=True))
         self.alg_experience_boost = nn.Parameter(
             torch.tensor(np.random.normal(0.5, 0.02, size=nalgos), requires_grad=True))
 
@@ -42,7 +41,7 @@ class IdealLearner(nn.Module):
                                 self.alg_memory_horizon, self.alg_experience_boost, self.task_difficulity)
 
     def performance(self, ntasks, nalgos, task_matrix, lx, algo_efficiency, algo_memory, algo_experience_boost,
-                    task_difficulity):
+                    task_difficulty):
         self.result = torch.tensor(np.zeros((nalgos, ntasks, len(lx) + 1)))
         self.sig = torch.tensor(np.zeros((nalgos, ntasks, len(lx) + 1)))
         for algo in range(nalgos):
@@ -53,9 +52,8 @@ class IdealLearner(nn.Module):
                     self.result[algo, task2, ind + 1] = (prior_exp + task_matrix[task, task2] * algo_efficiency[algo]
                                                          + task_matrix[task, task2] * prior_perf * algo_experience_boost[algo])
 
-                    difficulty = task_difficulity[task2] * self.task_difficulty_scale
-                    self.sig[algo, task2, ind + 1] = (1 / (
-                            1 + (torch.exp(-1 * self.result[algo, task2, ind + 1] / difficulty))) * 2) - 1
+                    difficulty = task_difficulty[task2] * self.task_difficulty_scale
+                    self.sig[algo, task2, ind + 1] = self.sigmoid(self.result[algo, task2, ind + 1] / difficulty)
 
         return self.sig
 
@@ -85,13 +83,13 @@ class IdealLearner(nn.Module):
             self.prediction = prediction
             loss = mse_loss(target, prediction)
             loss.backward()
+            optimizer.step()
             with torch.no_grad():
                 self.task_matrix.clamp_(-1.0, 1.0)
                 self.task_difficulity.clamp_min_(0.0)
                 self.alg_efficiency.clamp_min_(0.0)
                 self.alg_memory_horizon.clamp_(0.0, 1.0)
                 self.alg_experience_boost.clamp_min_(0.0)
-            optimizer.step()
             self.losses.append(loss.detach().numpy())
         plt.plot(self.losses)
 
