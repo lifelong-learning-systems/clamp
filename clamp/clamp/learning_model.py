@@ -5,6 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 
 from torch import nn
+from torch.nn.functional import mse_loss
 
 from tqdm import tqdm
 
@@ -22,11 +23,19 @@ class IdealLearner(nn.Module):
         self.memory_horizon_scale = 1
         self.task_matrix = nn.Parameter(
             torch.tensor(np.random.random((self.ntasks, self.ntasks)) * 2 - 1, requires_grad=True))
-        self.task_difficulity = nn.Parameter(torch.tensor(np.random.random((self.ntasks)), requires_grad=True))
+        self.task_difficulity = nn.Parameter(torch.tensor(np.random.random((self.ntasks,)), requires_grad=True))
         self.alg_efficiency = nn.Parameter(torch.tensor(np.random.normal(0.5, 0.02, size=nalgos), requires_grad=True))
         self.alg_memory_horizon = nn.Parameter(torch.tensor(np.random.normal(.5, .1, size=nalgos), requires_grad=True))
         self.alg_experience_boost = nn.Parameter(
             torch.tensor(np.random.normal(0.5, 0.02, size=nalgos), requires_grad=True))
+
+        # things that get filled in during use
+        self.result = None
+        self.sig = None
+        self.target = None
+        self.lx = None
+        self.losses = None
+        self.prediction = None
 
     def forward(self, lx):
         return self.performance(self.ntasks, self.nalgos, self.task_matrix, lx, self.alg_efficiency,
@@ -41,20 +50,21 @@ class IdealLearner(nn.Module):
                 for task2 in range(task_matrix.shape[0]):
                     prior_exp = torch.sum(self.result[algo, task2, ind:ind + 1]) * algo_memory[algo]
                     prior_perf = torch.sum(self.sig[algo, task, ind:ind + 1])
-                    self.result[algo, task2, ind + 1] = prior_exp + task_matrix[task, task2] * algo_efficiency[algo] + \
-                                                        task_matrix[task, task2] * prior_perf * algo_experience_boost[
-                                                            algo]
+                    self.result[algo, task2, ind + 1] = (prior_exp + task_matrix[task, task2] * algo_efficiency[algo]
+                                                         + task_matrix[task, task2] * prior_perf * algo_experience_boost[algo])
 
                     difficulty = task_difficulity[task2] * self.task_difficulty_scale
                     self.sig[algo, task2, ind + 1] = (1 / (
-                                1 + (torch.exp(-1 * self.result[algo, task2, ind + 1] / difficulty))) * 2) - 1
+                            1 + (torch.exp(-1 * self.result[algo, task2, ind + 1] / difficulty))) * 2) - 1
 
         return self.sig
 
-    def sigmoid(self, x):
+    @staticmethod
+    def sigmoid(x):
         return 2. * torch.exp(x) / (torch.exp(x) + 1.) - 1.
 
-    def last_seen(self, lx, task, current_index):
+    @staticmethod
+    def last_seen(lx, task, current_index):
         result = 0
         for i in range(current_index - 1, 0, -1):
             if lx[i] is not task:
@@ -68,20 +78,19 @@ class IdealLearner(nn.Module):
         self.target = target
         self.lx = lx
         self.losses = []
-        for i in tqdm(range(iters)):
+        for _ in tqdm(range(iters)):
             optimizer.zero_grad()
 
             prediction = self(lx)
             self.prediction = prediction
-            # pdb.set_trace()
-            loss = torch.nn.functional.mse_loss(target, prediction)
+            loss = mse_loss(target, prediction)
             loss.backward()
             with torch.no_grad():
-                self.task_matrix.clamp_(-1, 1)
-                self.task_difficulity.clamp_min_(0)
-                self.alg_efficiency.clamp_min_(0)
-                self.alg_memory_horizon.clamp_(0, 1)
-                self.alg_experience_boost.clamp_min_(0)
+                self.task_matrix.clamp_(-1.0, 1.0)
+                self.task_difficulity.clamp_min_(0.0)
+                self.alg_efficiency.clamp_min_(0.0)
+                self.alg_memory_horizon.clamp_(0.0, 1.0)
+                self.alg_experience_boost.clamp_min_(0.0)
             optimizer.step()
             self.losses.append(loss.detach().numpy())
         plt.plot(self.losses)
@@ -90,7 +99,7 @@ class IdealLearner(nn.Module):
         data = {'algorithm': range(self.nalgos),
                 'efficiency': self.alg_efficiency.detach().numpy(),
                 'retention': self.alg_memory_horizon.detach().numpy(),
-                'expertice': self.alg_experience_boost.detach().numpy()}
+                'expertise': self.alg_experience_boost.detach().numpy()}
         if algo_names is not None:
             data['algorithm'] = algo_names
         df = pd.DataFrame(data).to_csv(index=False)
