@@ -167,11 +167,11 @@ class CLAMP(nn.Module):
         self.losses['step'].append(step)
         self.losses['loss'].append(loss)
 
-    def print_algo_results(self,algo_names=None):
+    def print_algo_results(self, algo_names=None):
         data = {'algorithm': range(self.nalgos),
-                'efficiency':self.alg_efficiency.detach().numpy(),
+                'efficiency': self.alg_efficiency.detach().numpy(),
                 'retention': self.alg_memory_horizon.detach().numpy(),
-                'expertice': self.alg_experience_boost.detach().numpy()}
+                'expertise': self.alg_experience_boost.detach().numpy()}
         if algo_names is not None:
             data['algorithm'] = algo_names
         df = pd.DataFrame(data).to_csv(index=False)
