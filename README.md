@@ -9,12 +9,17 @@ We tested with Python 3.9 in a conda environment
 
 conda create -n clamp python=3.9
 
+pip install -e clamp/
+
 ### Requirements
 torch >=1.10.1
 matplotlib
 seaborn
 numpy
 ipykernel
+pandas
+pyyaml
+tqdm
 
 
 ### Reproduce experiments and manuscript figures
